@@ -19,6 +19,14 @@ tokens, and cookies are never copied into application preferences.
 swift run alarm-radar
 ```
 
+## Install with Homebrew
+
+After the first release is published:
+
+```bash
+brew install --cask guzzolm/tap/alarm-radar
+```
+
 On first launch, enter the Grafana base URL, save it, and choose **Sign in to
 Grafana…**. Complete SSO in the window that opens. Alarm Radar polls immediately
 and then every 60 seconds by default.
@@ -26,12 +34,25 @@ and then every 60 seconds by default.
 ## Build an application bundle
 
 ```bash
-chmod +x scripts/package-app.sh
-scripts/package-app.sh
-open AlarmRadar.app
+./create-dmg.sh 0.1.0
 ```
 
-The bundle is ad-hoc signed for local use.
+This creates `AlarmRadar-0.1.0.dmg` and its SHA-256 file. The bundle is ad-hoc
+signed for local use.
+
+## Publishing a release
+
+1. Add a `TAP_GITHUB_TOKEN` Actions secret with `contents: write` access to
+   `GuzzoLM/homebrew-tap`.
+2. Create and push a semantic version tag, for example:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+The release workflow builds arm64 and Intel binaries, creates a universal DMG,
+publishes the GitHub release, and updates `Casks/alarm-radar.rb` in the tap.
 
 ## Current POC behavior
 
@@ -40,7 +61,8 @@ The bundle is ad-hoc signed for local use.
 - Configurable polling interval (60 seconds by default, 15 seconds minimum)
 - Optional free-text or Prometheus-style label filtering
 - Firing, pending, error/no-data, and muted sections
-- Unseen indicator and actionable count in the menu bar
+- Separate firing and pending counters in the menu bar
+- Sound notification when an alert newly transitions to firing (enabled by default)
 - Manual refresh and last-successful-refresh timestamp
 - Open alerts in Grafana
 - Persistent seen and mute state
@@ -55,9 +77,9 @@ payments
 {team!="platform", service!~"sandbox-.*"}
 ```
 
-All label matchers in a filter must match. The menu-bar number counts firing
-alerts after filtering; pending and error/no-data alerts remain visible in their
-own menu sections but do not inflate the badge.
+All label matchers in a filter must match. The menu bar shows separate firing
+and pending counters after filtering and muting. Error/no-data alerts remain
+visible in their own menu section.
 
 ## Authentication caveat
 

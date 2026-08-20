@@ -13,6 +13,7 @@ struct AlertParserTests {
               "file": "Production",
               "rules": [{
                 "name": "High error rate",
+                "uid": "checkout-errors",
                 "state": "firing",
                 "health": "ok",
                 "alerts": [{
@@ -21,7 +22,7 @@ struct AlertParserTests {
                   "state": "firing",
                   "activeAt": "2026-08-19T12:00:00Z",
                   "value": "0.42",
-                  "generatorURL": "/alerting/grafana/abc/view"
+                  "generatorURL": "/alerting/list"
                 }]
               }]
             }]
@@ -36,7 +37,7 @@ struct AlertParserTests {
         #expect(alerts[0].state == .firing)
         #expect(alerts[0].severity == "critical")
         #expect(alerts[0].labels["grafana_folder"] == "Production")
-        #expect(alerts[0].generatorURL?.absoluteString == "https://grafana.example.com/alerting/grafana/abc/view")
+        #expect(alerts[0].generatorURL?.absoluteString == "https://grafana.example.com/alerting/grafana/checkout-errors/view")
     }
 
     @Test func healthErrorOverridesNormalState() throws {
@@ -50,5 +51,21 @@ struct AlertParserTests {
 
         #expect(alerts.count == 1)
         #expect(alerts[0].state == .error)
+    }
+
+    @Test func buildsDetailURLFromNestedGrafanaUID() throws {
+        let json = #"""
+        {"data":{"groups":[{"name":"infra","rules":[{
+          "name":"CPU saturation",
+          "state":"firing",
+          "health":"ok",
+          "grafana_alert":{"uid":"cpu-rule-123"},
+          "alerts":[{"state":"firing","labels":{"host":"worker-1"}}]
+        }]}]}}
+        """#
+
+        let alerts = try AlertParser.parse(data: Data(json.utf8), baseURL: URL(string: "https://grafana.example.com/monitoring")!)
+
+        #expect(alerts[0].generatorURL?.absoluteString == "https://grafana.example.com/monitoring/alerting/grafana/cpu-rule-123/view")
     }
 }

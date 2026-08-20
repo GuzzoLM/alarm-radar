@@ -25,7 +25,7 @@ enum AlertParser {
                 let ruleName = rule["name"] as? String ?? "Unnamed alert"
                 let health = rule["health"] as? String
                 let ruleState = state(rule["state"] as? String, health: health)
-                let ruleURL = url(rule["url"], baseURL: baseURL)
+                let ruleURL = alertRuleURL(rule: rule, baseURL: baseURL)
                 let instances = rule["alerts"] as? [[String: Any]] ?? []
 
                 if instances.isEmpty {
@@ -48,7 +48,7 @@ enum AlertParser {
                         annotations: dictionary(instance["annotations"]),
                         activeAt: date(instance["activeAt"] as? String),
                         value: instance["value"] as? String,
-                        url: url(instance["generatorURL"] ?? rule["url"], baseURL: baseURL)
+                        url: ruleURL ?? url(instance["generatorURL"], baseURL: baseURL)
                     ))
                 }
             }
@@ -63,6 +63,7 @@ enum AlertParser {
             let spec = item["spec"] as? [String: Any] ?? [:]
             let status = item["status"] as? [String: Any] ?? [:]
             let name = spec["title"] as? String ?? metadata["name"] as? String ?? "Unnamed alert"
+            let ruleURL = detailURL(uid: metadata["name"] as? String, baseURL: baseURL)
             let health = status["health"] as? String
             let instances = status["instances"] as? [[String: Any]] ?? status["alerts"] as? [[String: Any]] ?? []
             let baseLabels = dictionary(spec["labels"])
@@ -72,7 +73,7 @@ enum AlertParser {
                 if currentState != .normal {
                     result.append(makeAlert(ruleName: name, state: currentState, health: health,
                                             labels: baseLabels, annotations: dictionary(spec["annotations"]),
-                                            activeAt: nil, value: nil, url: nil))
+                                            activeAt: nil, value: nil, url: ruleURL))
                 }
             } else {
                 for instance in instances {
@@ -84,7 +85,7 @@ enum AlertParser {
                         annotations: dictionary(instance["annotations"]),
                         activeAt: date(instance["activeAt"] as? String),
                         value: instance["value"] as? String,
-                        url: url(instance["generatorURL"], baseURL: baseURL)
+                        url: ruleURL ?? url(instance["generatorURL"], baseURL: baseURL)
                     ))
                 }
             }
@@ -130,6 +131,26 @@ enum AlertParser {
     private static func url(_ value: Any?, baseURL: URL) -> URL? {
         guard let string = value as? String, !string.isEmpty else { return nil }
         return URL(string: string, relativeTo: baseURL)?.absoluteURL
+    }
+
+    private static func alertRuleURL(rule: [String: Any], baseURL: URL) -> URL? {
+        if let direct = url(rule["url"], baseURL: baseURL) { return direct }
+
+        let grafanaAlert = rule["grafana_alert"] as? [String: Any]
+        let labels = dictionary(rule["labels"])
+        let uid = rule["uid"] as? String
+            ?? grafanaAlert?["uid"] as? String
+            ?? labels["__alert_rule_uid__"]
+        return detailURL(uid: uid, baseURL: baseURL)
+    }
+
+    private static func detailURL(uid: String?, baseURL: URL) -> URL? {
+        guard let uid, !uid.isEmpty else { return nil }
+        return baseURL
+            .appending(path: "alerting")
+            .appending(path: "grafana")
+            .appending(path: uid)
+            .appending(path: "view")
     }
 
     private static func deduplicated(_ alerts: [MonitoredAlert]) -> [MonitoredAlert] {

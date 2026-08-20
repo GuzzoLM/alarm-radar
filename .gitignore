@@ -3,3 +3,5 @@
 *.xcodeproj/
 DerivedData/
 AlarmRadar.app/
+*.dmg
+*.dmg.sha256

@@ -1,0 +1,15 @@
+cask "alarm-radar" do
+  version "__VERSION__"
+  sha256 "__SHA256__"
+
+  url "https://github.com/GuzzoLM/alarm-radar/releases/download/v#{version}/AlarmRadar-#{version}.dmg"
+  name "Alarm Radar"
+  desc "Menu bar app for monitoring Grafana alerts"
+  homepage "https://github.com/GuzzoLM/alarm-radar"
+
+  depends_on macos: ">= :ventura"
+
+  app "AlarmRadar.app"
+
+  zap trash: "~/Library/Preferences/dev.guzzolm.alarm-radar.plist"
+end
