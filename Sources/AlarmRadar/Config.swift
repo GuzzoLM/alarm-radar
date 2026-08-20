@@ -9,6 +9,7 @@ final class Config {
         static let grafanaURL = "grafanaURL"
         static let pollInterval = "pollInterval"
         static let alertFilter = "alertFilter"
+        static let notificationSoundEnabled = "notificationSoundEnabled"
         static let mutedAlertIDs = "mutedAlertIDs"
         static let seenAlertIDs = "seenAlertIDs"
     }
@@ -32,6 +33,14 @@ final class Config {
     var alertFilter: String {
         get { defaults.string(forKey: Key.alertFilter) ?? "" }
         set { defaults.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Key.alertFilter) }
+    }
+
+    var notificationSoundEnabled: Bool {
+        get {
+            guard defaults.object(forKey: Key.notificationSoundEnabled) != nil else { return true }
+            return defaults.bool(forKey: Key.notificationSoundEnabled)
+        }
+        set { defaults.set(newValue, forKey: Key.notificationSoundEnabled) }
     }
 
     var mutedAlertIDs: Set<String> {

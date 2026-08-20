@@ -27,7 +27,8 @@ final class MenuManager: NSObject, NSMenuDelegate {
         }
     }
 
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let firingStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let pendingStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private var snapshot: PollSnapshot?
     private var error: Error?
@@ -41,8 +42,9 @@ final class MenuManager: NSObject, NSMenuDelegate {
     override init() {
         super.init()
         menu.delegate = self
-        statusItem.menu = menu
-        updateIcon(count: 0, hasUnseen: false)
+        firingStatusItem.menu = menu
+        pendingStatusItem.menu = menu
+        updateIcons(firingCount: 0, pendingCount: 0, hasUnseenFiring: false, hasUnseenPending: false)
     }
 
     func setLoading(_ value: Bool) {
@@ -83,8 +85,15 @@ final class MenuManager: NSObject, NSMenuDelegate {
         let alerts = snapshot?.alerts ?? []
         let visible = alerts.filter { !config.mutedAlertIDs.contains($0.id) && $0.state != .normal }
         let firing = visible.filter { $0.state == .firing }
+        let pending = visible.filter { $0.state == .pending }
         let unseenFiring = firing.filter { !config.seenAlertIDs.contains($0.id) }
-        updateIcon(count: firing.count, hasUnseen: !unseenFiring.isEmpty)
+        let unseenPending = pending.filter { !config.seenAlertIDs.contains($0.id) }
+        updateIcons(
+            firingCount: firing.count,
+            pendingCount: pending.count,
+            hasUnseenFiring: !unseenFiring.isEmpty,
+            hasUnseenPending: !unseenPending.isEmpty
+        )
 
         addConnectionStatus()
         menu.addItem(.separator())
@@ -150,22 +159,34 @@ final class MenuManager: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func updateIcon(count: Int, hasUnseen: Bool) {
-        guard let button = statusItem.button else { return }
-        button.image = NSImage(systemSymbolName: hasUnseen ? "exclamationmark.triangle.fill" : "exclamationmark.triangle", accessibilityDescription: "Alarm Radar")
+    private func updateIcons(firingCount: Int, pendingCount: Int, hasUnseenFiring: Bool, hasUnseenPending: Bool) {
+        configureStatusButton(
+            firingStatusItem.button,
+            symbol: hasUnseenFiring ? "flame.fill" : "flame",
+            accessibilityDescription: "Firing Grafana alerts",
+            count: firingCount,
+            tooltip: "\(firingCount) firing Grafana alert\(firingCount == 1 ? "" : "s")"
+        )
+        configureStatusButton(
+            pendingStatusItem.button,
+            symbol: hasUnseenPending ? "clock.fill" : "clock",
+            accessibilityDescription: "Pending Grafana alerts",
+            count: pendingCount,
+            tooltip: "\(pendingCount) pending Grafana alert\(pendingCount == 1 ? "" : "s")"
+        )
+    }
+
+    private func configureStatusButton(_ button: NSStatusBarButton?, symbol: String, accessibilityDescription: String, count: Int, tooltip: String) {
+        guard let button else { return }
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: accessibilityDescription)
         button.image?.isTemplate = true
         button.imagePosition = .imageLeading
-        button.title = count > 0 ? " \(count)" : ""
+        button.title = " \(count)"
         // Let macOS choose the correct template color for light/dark menu bars.
         // Applying semantic colors here can make status-item images disappear
         // against translucent or accessibility menu-bar backgrounds.
         button.contentTintColor = nil
-        switch connectionState {
-        case .idle: button.toolTip = "Alarm Radar — not connected"
-        case .checking: button.toolTip = "Alarm Radar — checking Grafana connection"
-        case .connected: button.toolTip = "Alarm Radar — connected to Grafana"
-        case let .failed(message): button.toolTip = "Alarm Radar — \(message)"
-        }
+        button.toolTip = tooltip
     }
 
     private func addConnectionStatus() {

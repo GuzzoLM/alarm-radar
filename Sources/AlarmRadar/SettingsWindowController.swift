@@ -5,6 +5,7 @@ final class SettingsWindowController: NSWindowController {
     private let urlField = NSTextField()
     private let intervalField = NSTextField()
     private let filterField = NSTextField()
+    private let soundCheckbox = NSButton(checkboxWithTitle: "Play a sound for newly firing alerts", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
     private let onSave: () -> Void
     private let onSignIn: () -> Void
@@ -18,7 +19,7 @@ final class SettingsWindowController: NSWindowController {
         self.onTest = onTest
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 620, height: 360),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -36,6 +37,7 @@ final class SettingsWindowController: NSWindowController {
         urlField.stringValue = Config.shared.grafanaURL?.absoluteString ?? ""
         intervalField.stringValue = String(Int(Config.shared.pollInterval))
         filterField.stringValue = Config.shared.alertFilter
+        soundCheckbox.state = Config.shared.notificationSoundEnabled ? .on : .off
         statusLabel.stringValue = ""
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
@@ -78,7 +80,7 @@ final class SettingsWindowController: NSWindowController {
         statusLabel.lineBreakMode = .byWordWrapping
         statusLabel.maximumNumberOfLines = 2
 
-        let stack = NSStackView(views: [grid, filterHelp, statusLabel, buttonRow])
+        let stack = NSStackView(views: [grid, filterHelp, soundCheckbox, statusLabel, buttonRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 18
@@ -125,6 +127,7 @@ final class SettingsWindowController: NSWindowController {
         Config.shared.grafanaURL = normalizedURL(rawURL)
         Config.shared.pollInterval = TimeInterval(intervalField.integerValue)
         Config.shared.alertFilter = filterField.stringValue
+        Config.shared.notificationSoundEnabled = soundCheckbox.state == .on
     }
 
     private func normalizedURL(_ value: String) -> URL? {

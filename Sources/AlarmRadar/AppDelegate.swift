@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var client = GrafanaWebClient(session: session)
     private lazy var poller = PollCoordinator(client: client)
     private let menuManager = MenuManager()
+    private var firingTransitionTracker = FiringTransitionTracker()
     private lazy var settingsController = SettingsWindowController(
         onSave: { [weak self] in self?.configurationChanged() },
         onSignIn: { [weak self] in self?.showLogin() },
@@ -22,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuManager.settingsRequested = { [weak self] in self?.settingsController.show() }
 
         poller.didStart = { [weak self] in self?.menuManager.setLoading(true) }
-        poller.didUpdate = { [weak self] snapshot in self?.menuManager.update(snapshot: snapshot) }
+        poller.didUpdate = { [weak self] snapshot in self?.handleSnapshot(snapshot) }
         poller.didFail = { [weak self] error in
             self?.menuManager.show(error: error)
             if case RadarError.notAuthenticated = error { self?.showLogin() }
@@ -52,7 +53,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         session.configure(baseURL: url)
+        firingTransitionTracker.reset()
         poller.restart()
+    }
+
+    private func handleSnapshot(_ snapshot: PollSnapshot) {
+        let newFiringIDs = firingTransitionTracker.newlyFiringIDs(
+            in: snapshot.alerts,
+            excluding: Config.shared.mutedAlertIDs
+        )
+        menuManager.update(snapshot: snapshot)
+
+        guard Config.shared.notificationSoundEnabled, !newFiringIDs.isEmpty else { return }
+        if let sound = NSSound(named: NSSound.Name("Glass")) {
+            sound.play()
+        } else {
+            NSSound.beep()
+        }
     }
 
     private func showLogin() {
